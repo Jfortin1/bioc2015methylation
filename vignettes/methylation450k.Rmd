@@ -237,9 +237,9 @@ gset <- addSnpInfo(gset)
 We strongly recommend to drop the probes that contain either a SNP at the CpG interrogation or at the single nucleotide extension.The function *dropLociWithSnps* allows to drop the corresponding probes. Here is an example where we drop the probes containing a SNP at the CpG interrogation and/or at the single nucleotide extension, for any minor allele frequency:
 
 
-%```{r}
-%gset <- dropLociWithSnps(gset, snps=c("SBE","CpG"), maf=0)
-%```
+<!---```{r}
+gset <- dropLociWithSnps(gset, snps=c("SBE","CpG"), maf=0)
+```-->
 
 
 
