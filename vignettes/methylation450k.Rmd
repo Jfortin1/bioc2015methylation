@@ -357,7 +357,7 @@ designMatrix <- model.matrix(~ pheno)
 
 \item Run the algorithm with *B=0* permutation on the Beta-values, with a medium difference cutoff, say *0.2* (which corresponds to *20\%* difference on the Beta-values):
 
-```{r}
+```{r, eval=FALSE}
 dmrs <- bumphunter(gset.funnorm, design = designMatrix, 
              cutoff = 0.2, B=0, type="Beta")
 ```
@@ -371,21 +371,21 @@ dmrs <- bumphunter(gset.funnorm, design = designMatrix,
 
 Since the permutation scheme can be expensive, parallel computation is implemented in the *bumphunter* function. The [foreach](http://cran.r-project.org/web/packages/foreach/index.html) package allows different parallel *back-ends* that will distribute the computation across multiple cores in a single machine, or across machines in a cluster. For instance, if one wished to use 3 cores, the two following commands have to be run before running bumphunter:
 
-```{r}
+```{r, eval=FALSE}
 library(doParallel)
 registerDoParallel(cores = 3)
 ```
 
 The results of *bumphunter* are stored in a data frame with the rows being the different differentially methylated regions (DMRs): 
 
-```{r}
+```{r,  eval=FALSE}
 names(dmrs)
 head(dmrs$table, n=3)
 @
   
 As an example, we have run the bump hunting algorithm to find DMRs between colon and kidney (20 samples each from TCGA), with $B=1000$ permutations, and a cutoff of 0.2 on the Beta values:
   
-```{r}
+```{r, eval=FALSE}
 load("data/dmrs_B1000_c02.Rda")
 head(dmrs$table)
 ```
