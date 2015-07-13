@@ -115,7 +115,7 @@ See the [minfi vignette](http://bioconductor.org/packages/release/bioc/vignettes
 
 `r Biocpkg("minfi")` provides a simple quality control plot that uses the log median intensity in both the methylated (M) and unmethylated (U) channels. When plotting these two medians against each other, it has been observed that good samples cluster together, while failed samples tend to separate and have lower median intensities. In order to obtain the methylated and unmethylated signals, we need to convert the *RGChannelSet* to an object containing the methylated and unmethylated signals using the function *preprocessRaw*. It takes as input a *RGChannelSet* and converts the red and green intensities to methylated and unmethylated signals according to the special 450K probe design, and returns the converted signals in a new object of class *MethylSet*. It does not perform any normalization.
 
-```{R}
+```{r}
 MSet <- preprocessRaw(RGSet) 
 MSet
 ```
