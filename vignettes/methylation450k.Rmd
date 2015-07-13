@@ -267,7 +267,7 @@ So far, we did not use any normalization to process the data. Different normaliz
 
 <a id="raw"></a>
 
-### preprocessRaw
+#### preprocessRaw
 
 As seen before, it converts a *RGChannelSet* to a *MethylSet* by converting the Red and Green channels into a matrix of methylated signals and a matrix of unmethylated signals. No normalization is performed. 
 
@@ -276,7 +276,7 @@ Output: *MethylSet*
 
 <a id="illumina"></a>
 
-### preprocessIllumina
+#### preprocessIllumina
 
 Convert a *RGChannelSet* to a *MethylSet* by implementing the preprocessing choices as available in Genome Studio: background subtraction and control normalization. Both of them are optional and turning them off is equivalent to raw preprocessing (*preprocessRaw*):
 
@@ -290,7 +290,7 @@ Output: *MethylSet*
 
 <a id="swan"></a>
 
-### preprocessSWAN
+#### preprocessSWAN
 
 Perform Subset-quantile within array normalization (SWAN) \citep{swan}, a within-array normalization correction for the technical differences between the Type I and Type II array designs. The algorithm matches the Beta-value distributions of the Type I and Type II probes by applying a within-array quantile normalization separately for different subsets of probes (divided by CpG content). The input of SWAN is a *MethylSet*, and the function returns a *MethylSet* as well. If an *RGChannelSet* is provided instead, the function will first call *preprocessRaw* on the *RGChannelSet*, and then apply the SWAN normalization. We recommend setting a seed (using *set.seed*) before using *preprocessSWAN* to ensure that the normalized intensities will be reproducible. 
 
@@ -303,7 +303,7 @@ Output: *MethylSet*
 
 <a id="quantile"></a>
 
-### preprocessQuantile
+#### preprocessQuantile
 
 \subsection*{preprocessQuantile}
 This function implements stratified quantile normalization preprocessing.  The normalization procedure is applied to the Meth and Unmeth intensities separately. The distribution of type I and type II signals is forced to be the same by first quantile normalizing the type II probes across samples and then interpolating a reference distribution to which we normalize the type I probes. Since probe types and probe regions are confounded and we know that DNAm distributions vary across regions we stratify the probes by region before applying this interpolation. Note that this algorithm relies on the assumptions necessary for quantile normalization to be applicable and thus is not recommended for cases where global changes are expected such as in cancer-normal comparisons. Note that this normalization procedure is essentially similar to one previously presented \citep{Touleimat:2012}. The different options can be summarized into the following list:
@@ -333,7 +333,7 @@ Output: *GenomicRatioSet*
 
 <a id="noob"></a>
 
-### preprocessNoob
+#### preprocessNoob
 
 The function *preprocessNoob* implements the noob background subtraction method with dye-bias normalization discussed in \citep{noob.}. Briefly, the background subtraction method estimates background noise from the out-of-band probes and remove it for each sample separately, while the dye-bias normalization utilizes a subset of the control probes to estimate the dye bias. By default, the function will perform both procedures:
 ```{r}
@@ -345,7 +345,7 @@ Output: *MethylSet*
 
 <a id="funnorm"></a>
 
-### preprocessFunnorm
+#### preprocessFunnorm
 
 The function *preprocessFunnorm* implements the functional normalization algorithm developed in \citep{funnorm}. Briefly, it uses the internal control probes present on the array to infer between-array technical variation. It is particularly useful for studies comparing conditions with known large-scale differences, such as cancer/normal studies, or between-tissue studies. It has been shown that for such studies, functional normalization outperforms other existing approaches \citep{funnorm}. By default, the function applies the *preprocessNoob* function as a first step for background substraction, and uses the first two principal components of the control probes to infer the unwanted variation. 
 
