@@ -307,14 +307,17 @@ Output: *GenomicRatioSet*
 
 ### preprocessNoob
 
+The function *preprocessNoob* implements the noob background subtraction method with dye-bias normalization discussed in \citep{noob.}. Briefly, the background subtraction method estimates background noise from the out-of-band probes and remove it for each sample separately, while the dye-bias normalization utilizes a subset of the control probes to estimate the dye bias. By default, the function will perform both procedures:
 ```{r}
-gset.noob <- preprocessNoob(RGSet, dyeCorr=TRUE)
+gset.noob <- preprocessNoob(RGSet)
 ```
 
+Input: *RGChannelSet*
+Output: *MethylSet*
 
 ### preprocessFunnorm
 
-The function *preprocessFunnorm* implements the functional normalization algorithm developed in \citep{funnorm}. Briefly, it uses the internal control probes present on the array to infer between-array technical variation. It is particularly useful for studies comparing conditions with known large-scale differences, such as cancer/normal studies, or between-tissue studies. It has been shown that for such studies, functional normalization outperforms other existing approaches \citep{funnorm}. By default, is uses the first two principal components of the control probes to infer the unwanted variation. 
+The function *preprocessFunnorm* implements the functional normalization algorithm developed in \citep{funnorm}. Briefly, it uses the internal control probes present on the array to infer between-array technical variation. It is particularly useful for studies comparing conditions with known large-scale differences, such as cancer/normal studies, or between-tissue studies. It has been shown that for such studies, functional normalization outperforms other existing approaches \citep{funnorm}. By default, the function applies the *preprocessNoob* function as a first step for background substraction, and uses the first two principal components of the control probes to infer the unwanted variation. 
 
 ```{r}
 gset.funnorm <- preprocessFunnorm(RGSet)
@@ -336,6 +339,59 @@ dmp <- dmpFinder(beta, pheno = age  , type = "continuous")
 head(dmp)
 ```
  
+
+## Bumphunter: to find differentially methylated regions (DMRs)
+
+The *bumphunter* function in minfi is a version of the bump hunting algorithm \citep{bumphunter} adapted to the 450k array, relying on the *bumphunter* function implemented in the eponym package `r Biocpkg("bumphunter")` 
+
+Instead of looking for association between a single genomic location and a phenotype of interest, *bumphunter* looks for genomic regions that are differentially methylated between two conditions. In the context of the 450k array, the algorithm first defines clusters of probes. Clusters are simply groups of probes such that two consecutive probe locations in the cluster are not separated by more than some distance *mapGap*. 
+
+Briefly, the algorithm first computes a t-statistic at each genomic location, with optional smoothing. Then, it defines a candidate region to be a cluster of probes for which all the t-statistics exceed a predefined threshold. To test for significance of the candidate regions, the algorithm uses permutations (defined by the parameter *B*). The permutation scheme is expensive, and can take a few days when the number of candidate bumps is large. To avoid wasting time, we propose the following guideline:
+
+\begin{itemize}
+\item Define your phenotype of interest
+```{r}
+pheno <- pData(gset.funnorm)$status
+designMatrix <- model.matrix(~ pheno)
+```
+
+\item Run the algorithm with *B=0* permutation on the Beta-values, with a medium difference cutoff, say *0.2* (which corresponds to *20\%* difference on the Beta-values):
+
+```{r}
+dmrs <- bumphunter(gset.funnorm, design = designMatrix, 
+             cutoff = 0.2, B=0, type="Beta")
+```
+\item If the number of candidate bumps is large, say $>30000$, increase the cutoff to reduce the number of candidate bumps. The rationale behind this is that the most of the additional candidate regions found by lowering the cutoff will be found to be non-significant after the permutation scheme,  and therefore time can be saved by being more stringent on the cutoff (high cutoff).  
+\item Once you have decided on the cutoff, run the algorithm with a large number of permutations, say *B=1000*:
+```{r}
+dmrs <- bumphunter(gset.funnorm, design = designMatrix, 
+             cutoff = 0.2, B=1000, type="Beta")
+```
+\end{itemize}
+
+Since the permutation scheme can be expensive, parallel computation is implemented in the *bumphunter* function. The [foreach](http://cran.r-project.org/web/packages/foreach/index.html) package allows different parallel *back-ends* that will distribute the computation across multiple cores in a single machine, or across machines in a cluster. For instance, if one wished to use 3 cores, the two following commands have to be run before running bumphunter:
+
+```{r}
+library(doParallel)
+registerDoParallel(cores = 3)
+```
+
+The results of *bumphunter* are stored in a data frame with the rows being the different differentially methylated regions (DMRs): 
+
+```{r}
+names(dmrs)
+head(dmrs$table, n=3)
+@
+  
+As an example, we have run the bump hunting algorithm to find DMRs between colon and kidney (20 samples each from TCGA), with $B=1000$ permutations, and a cutoff of 0.2 on the Beta values:
+  
+```{r}
+load("data/dmrs_B1000_c02.Rda")
+head(dmrs$table)
+```
+
+The *start* and *end* columns indicate the limiting genomic locations of the DMR; the *value* column indicates the average difference in methylation in the bump, and the *area* column indicates the area of the bump with respect to the 0 line. The *fwer* column returns the family-wise error rate (FWER) of the regions estimated by the permeation scheme. One can filter the results by picking a cutoff on the FWER. 
+
 
 
 ## Block finder.
@@ -379,6 +435,8 @@ plotSex(getSex(gset, cutoff = -2))
 Finally, the function *addSex* applied to the *GenomicRatioSet* will add the predicted sex to the phenotype data. 
 
 **Note**: the function does not handle datasets with only females or only males
+
+## Cell type composition
 
 ## Advanced functions
 
