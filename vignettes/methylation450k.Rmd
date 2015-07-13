@@ -47,3 +47,36 @@ opts_chunk$set(message = FALSE, error = FALSE, warning = FALSE)
 
 # Introduction
 
+The goal of the tutorial is to present a standard analysis workflow of 450K data with the package `r Biocpkg("minfi")`, incorporating the functions recently added to the package. We invite you to read the software paper recently published \citep{minfi} and the online package vignette on the Bioconductor project \citep{Bioc} for more details. 
+
+We will start from the very beginning by reading input raw data (IDAT files) from an example dataset, and ending with a list of candidate genes for differential methylation. Among others, we will cover quality control assessments, different within-array and between-array normalizations, SNPs removal, sex prediction, differentially methylated positions (DMPs) analysis and bump hunting for differentially methylated regions (DMRs). 
+
+If time permits, we will introduce a complementary interactive visualization tool package available through Bioconductor, `r Biocpkg("shinyMethyl")`, that allows interactive quality control assessment. 
+
+#### 450k Array design and terminology
+In this section, we introduce briefly the 450K array as well as the terminology used throughout the `r Biocpkg("minfi")` package. 
+Each sample is measured on a single array, in two different color channels (red and green). As the name of the platform indicates, each array measures more than 450,000 CpG positions. For each CpG, we have two measurements: a methylated intensity and an unmethylated intensity. Depending on the probe design, the signals are reported in different colors:
+
+For *Type I* design, both signals are measured in the same color: one probe for the methylated signal and one probe for the unmethylated signal. For *Type II* design, only one probe is used. The intensity read in the green channel measures the methylated signal, and the intensity read in the red channel measures the unmethylated signal.
+
+Two commonly measures are used to report the methylation levels: Beta values and M values. 
+
+**Beta value**:
+$$\frac{M}{M + U + 100}$$
+
+where $M$ and $U$ denote the methylated and unmethylated signals respectively. 
+
+**MValue**:
+$$Mval = \log{\biggl(\frac{M}{U}\biggr)}$$
+
+**DMP**: Differentially methylated position: single genomic position that has a different methylated level in two different groups of samples (or conditions)
+
+**DMR**: Differentially methylated region: when consecutive genomic locations are differentially methylated in the same direction. 
+
+**Array**: One sample 
+
+**Slide**: Physical slide containing 12 arrays ($6 \times 2$ grid)
+
+**Plate** Physical plate containing at most 8 slides (96 arrays). For this tutorial, we use **batch** and plate interchangeably. 
+
+
