@@ -42,9 +42,20 @@ opts_chunk$set(message = FALSE, error = FALSE, warning = FALSE)
 
 # Contents
 
-* [Reading data](#read)
-* [Building a RGSet](#construct)
-* [bumphunter](#bumphunter)
+* [Reading the data into a RGSet](#reading)
+* [Quality control](#qc)
+* [Removal of SNPs probes](#snps)
+* [preprocessRaw: no normalization](#raw)
+* [preprocessSWAN: SWAN normalization](#swan)
+* [preprocessFunnorm: Functional normalization](#funnorm)
+* [preprocessQuantile: Stratified quantile normalization](#quantile)
+* [Differentially methylated positions (DMPs) analysis](#dmps)
+* [Differentially methylated regions (DMRs) analysis](#dmrs)
+* [Hypo/hypermethylation blocks analysis](#blocks)
+* [Batch effect removal with SVA](#sva)
+* [Cell type composition estimates](#celltype)
+* [Sex prediction](#sex)
+
 # Introduction
 
 The goal of the tutorial is to present a standard analysis workflow of 450K data with the package `r Biocpkg("minfi")`, incorporating the functions recently added to the package. We invite you to read the software paper recently published \citep{minfi} and the online package vignette on the Bioconductor project \citep{Bioc} for more details. 
@@ -79,6 +90,7 @@ $$Mval = \log{\biggl(\frac{M}{U}\biggr)}$$
 
 **Plate** Physical plate containing at most 8 slides (96 arrays). For this tutorial, we use **batch** and plate interchangeably. 
 
+<a id="reading"></a>
 
 ## Reading Data
 The starting point of `r Biocpkg("minfi")` is reading the .IDAT files with the built-in function *read.450k.exp*. Several options are available: the user can specify the sample filenames to be read in along with the directory path, or can specify the directory that contains the files. In the latter case, all the files with the extension .IDAT located in the directory will be loaded into \R{}. The user can also read in a sample sheet, and then use the sample sheet to load the data into a *RGChannelSet*. For more information, see the \texttt{minfi} vignette. Here, we will load the dataset containing 6 samples from the `r Biocpkg("minfiData")` package using the sample sheet provided within the package:
@@ -108,6 +120,8 @@ head(getProbeInfo(manifest))
 ```
 
 See the [minfi vignette](http://bioconductor.org/packages/release/bioc/vignettes/minfi/inst/doc/minfi.pdf) for more information. 
+
+<a id="qc"></a>
 
 ## Quality control
 
@@ -165,6 +179,8 @@ All the plots above can be exported into a pdf file in one step using the functi
 qcReport(RGSet, pdf= "qcReport.pdf")
 ```
 
+<a id="methylset"></a>
+
 ## MethylSet and RatioSet
 A *MethylSet* objects contains the methylated and unmethylated signals, but no methylation summary measures such as Beta values of M values. 
 
@@ -180,6 +196,8 @@ The functions *getBeta*, *getM* and *getCN* return respectively the Beta value m
 ```{r}
 beta <- getBeta(ratioSet)
 ```
+
+<a id="gemomicratioset"></a>
 
 ## GenomicRatioSet 
 
@@ -218,6 +236,8 @@ annotation <- getAnnotation(gset)
 names(annotation)
 ```
 
+<a id="snps"></a>
+
 
 ## SNPs
 
@@ -247,12 +267,16 @@ gset <- dropLociWithSnps(gset, snps=c("SBE","CpG"), maf=0)
 
 So far, we did not use any normalization to process the data. Different normalization procedures are available in `r Biocpkg("minfi")`.
 
+<a id="raw"></a>
+
 ### preprocessRaw
 
 As seen before, it converts a *RGChannelSet* to a *MethylSet* by converting the Red and Green channels into a matrix of methylated signals and a matrix of unmethylated signals. No normalization is performed. 
 
 Input: *RGChannelSet*
 Output: *MethylSet*
+
+<a id="illumina"></a>
 
 ### preprocessIllumina
 
@@ -266,6 +290,8 @@ MSet.illumina <- preprocessIllumina(RGSet, bg.correct = TRUE,
 Input: *RGChannelSet*
 Output: *MethylSet*
 
+<a id="swan"></a>
+
 ### preprocessSWAN
 
 Perform Subset-quantile within array normalization (SWAN) \citep{swan}, a within-array normalization correction for the technical differences between the Type I and Type II array designs. The algorithm matches the Beta-value distributions of the Type I and Type II probes by applying a within-array quantile normalization separately for different subsets of probes (divided by CpG content). The input of SWAN is a *MethylSet*, and the function returns a *MethylSet* as well. If an *RGChannelSet* is provided instead, the function will first call *preprocessRaw* on the *RGChannelSet*, and then apply the SWAN normalization. We recommend setting a seed (using *set.seed*) before using *preprocessSWAN* to ensure that the normalized intensities will be reproducible. 
@@ -276,6 +302,8 @@ MSet.swan <- preprocessSWAN(RGSet)
 
 Input: *RGChannelSet* or *MethylSet*
 Output: *MethylSet*
+
+<a id="quantile"></a>
 
 ### preprocessQuantile
 
@@ -305,6 +333,8 @@ Output: *GenomicRatioSet*
 
 **Note**: The function returns a *GenomicRatioSet* object ready for downstream analysis. 
 
+<a id="noob"></a>
+
 ### preprocessNoob
 
 The function *preprocessNoob* implements the noob background subtraction method with dye-bias normalization discussed in \citep{noob.}. Briefly, the background subtraction method estimates background noise from the out-of-band probes and remove it for each sample separately, while the dye-bias normalization utilizes a subset of the control probes to estimate the dye bias. By default, the function will perform both procedures:
@@ -314,6 +344,8 @@ gset.noob <- preprocessNoob(RGSet)
 
 Input: *RGChannelSet*
 Output: *MethylSet*
+
+<a id="funnorm"></a>
 
 ### preprocessFunnorm
 
@@ -327,7 +359,9 @@ Input: *RGChannelSet*
 Output: *GenomicRatioSet*
 
 As the *preprocessQuantile* function, it returns a *GenomicRatioSet* object.
- 
+
+<a id="dmps"></a>
+
 ## dmpFinder: to find differentially methylated positions (DMPs)
 
 While we do not encourage particularly a single position differential methylation analysis, the function *dmpFinder* finds differentially methylated positions (DMPs) with respect to a phenotype covariate. The phenotype may be categorical (e.g. cancer vs. normal) or continuous (e.g. blood pressure). Below is an example of a DMP analysis for age using the *gset.funnorm* object created above:
@@ -339,7 +373,7 @@ dmp <- dmpFinder(beta, pheno = age  , type = "continuous")
 head(dmp)
 ```
  
-<a id="bumphunter"></a>
+<a id="dmrs"></a>
 
 ## bumphunter: to find differentially methylated regions (DMRs)
 
@@ -395,13 +429,15 @@ The *start* and *end* columns indicate the limiting genomic locations of the DMR
 
 
 
+<a id="blocks"></a>
+
 ## Block finder.
 
 The approximately 170,000 open sea probes on the 450K array can be used to detect long-range changes in methylation status. These large scale changes that can range up to several Mb have typically been identified only through whole-genome bisulfite sequencing. The function *blockFinder* groups the average methylation values in open-sea probe cluster (via *cpgCollapse*) into large regions, and then run the *bumphunter* algorithm with a large (250KB+) smoothing window (see the bump hunting section for DMRs above).
 
 
 
-
+<a id="sva"></a>
 
 ## Batch effects correction with SVA
 
@@ -417,6 +453,8 @@ sva.results <- sva(mval, mod, mod0)
 ```
 
 Once the surrogate variables are computed, one can include them in the downstream analysis to adjust for unknown unwanted variation. See the [sva vignette](http://bioconductor.org/packages/release/bioc/vignettes/sva/inst/doc/sva.pdf) for a more comprehensive use of *sva*.
+
+<a id="sex"></a>
 
 ## Sex prediction
 
@@ -437,9 +475,13 @@ Finally, the function *addSex* applied to the *GenomicRatioSet* will add the pre
 
 **Note**: the function does not handle datasets with only females or only males
 
+<a id="celltype"></a>
+
 ## Cell type composition
 
 ## Advanced functions
+
+<a id="ab"></a>
 
 ### A/B compartments prediction.
 
