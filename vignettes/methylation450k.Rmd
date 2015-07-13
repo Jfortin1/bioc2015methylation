@@ -237,9 +237,9 @@ gset <- addSnpInfo(gset)
 We strongly recommend to drop the probes that contain either a SNP at the CpG interrogation or at the single nucleotide extension.The function *dropLociWithSnps* allows to drop the corresponding probes. Here is an example where we drop the probes containing a SNP at the CpG interrogation and/or at the single nucleotide extension, for any minor allele frequency:
 
 
-<!---```{r}
+```{r}
 gset <- dropLociWithSnps(gset, snps=c("SBE","CpG"), maf=0)
-```-->
+```
 
 
 
@@ -307,6 +307,10 @@ Output: *GenomicRatioSet*
 
 ### preprocessNoob
 
+```{r}
+gset.noob <- preprocessNoob(RGSet, dyeCorr=TRUE)
+```
+
 
 ### preprocessFunnorm
 
@@ -321,6 +325,8 @@ Output: *GenomicRatioSet*
 
 As the *preprocessQuantile* function, it returns a *GenomicRatioSet* object.
  
+ 
+ ## A/B compartments prediction
 
 
 
