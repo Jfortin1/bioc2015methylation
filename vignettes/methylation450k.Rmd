@@ -493,9 +493,7 @@ cellCounts <- estimateCellCounts(RGSet)
 
 ## Advanced functions
 
-The function *compartments* ...
-
-### getSnpBeta
+#### getSnpBeta
 
 The array contains by design 65 probes that are not meant to interrogate methylation status, but instead are designed to interrogate SNPs. By default, minfi drops these probes. The function *getSnpBeta*  allows the user to extract the Beta values for those probes from an *RGChannelSet*. The return object is a matrix with the columns being the samples and the rows being the different SNP probes:
 
@@ -506,7 +504,7 @@ head(snps)
 
 These SNP probes are intended to be used for sample tracking and sample mixups. Each SNP probe ought to have values clustered around 3 distinct values corresponding to homo-, and hetero-zygotes.
 
-### Out-of-band probes
+#### Out-of-band probes
 
 The function *getOOB* applied to an *RGChannelSet* retrieves the so-called *out-of-band* (OOB) probes. These are the measurements of Type I probes in the ``wrong" color channel. They are used in the *preprocessNoob* and *preprocessFunnorm* functions to estimate background noise. The function returns a list with two matrices, named *Red* and *Grn*.
 
@@ -531,8 +529,16 @@ sessionInfo()
 ```
 
 
+Figures stuff
 
+![alt tag](./figures/designNew.png)
 
+title: Probe design of the 450k array 
+caption: 
+For Type I design, both signals are measured in the same color: one probe for the methylated signal and one probe for the unmethylated signal. For Type II design, only one probe is used. The  Green intensity measures the methylated signal, and the Red intensity measures the unmethylated signal. 
+
+![alt tag](./figures/flowChart.png)
+Flow chart of the minfi functions}
 
 
 
