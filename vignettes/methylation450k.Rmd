@@ -44,11 +44,9 @@ opts_chunk$set(message = FALSE, error = FALSE, warning = FALSE)
 
 * [Reading the data into a RGSet](#reading)
 * [Quality control](#qc)
+* [MethylSet, RatioSet and GenomicRatioSet](#methylset)
 * [Removal of SNPs probes](#snps)
-* [preprocessRaw: no normalization](#raw)
-* [preprocessSWAN: SWAN normalization](#swan)
-* [preprocessFunnorm: Functional normalization](#funnorm)
-** [preprocessQuantile: Stratified quantile normalization](#quantile)
+* [Normalization](#normalization)
 * [Differentially methylated positions (DMPs) analysis](#dmps)
 * [Differentially methylated regions (DMRs) analysis](#dmrs)
 * [Hypo/hypermethylation blocks analysis](#blocks)
@@ -261,7 +259,7 @@ We strongly recommend to drop the probes that contain either a SNP at the CpG in
 gset <- dropLociWithSnps(gset, snps=c("SBE","CpG"), maf=0)
 ```
 
-
+<a id="normalization"></a>
 
 ## Preprocessing and normalization
 
