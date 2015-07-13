@@ -181,7 +181,7 @@ The functions *getBeta*, *getM* and *getCN* return respectively the Beta value m
 beta <- getBeta(ratioSet)
 ```
 
-## Map to Genome
+## GenomicRatioSet 
 
 The function *mapToGenome* applied to a *RatioSet* object will add genomic coordinates to each probe together with some additional annotation information. The output object is a *GenomicRatioSet* (class holding M or/and Beta values together with associated genomic coordinates). It is possible to merge the manifest object with the genomic locations by setting the option *mergeManifest* to *TRUE*.
 
@@ -217,6 +217,29 @@ To access the full annotation, one can use the command *getAnnotation*:
 annotation <- getAnnotation(gset)
 names(annotation)
 ```
+
+
+## SNPs
+
+Because the presence of SNPs inside the probe body or at the nucleotide extension can have important consequences on the downstream analysis,  `r Biocpkg("minfi")` offers the possibility to remove such probes. The function *getSnpInfo*, applied to a *GenomicRatioSet*, returns a data frame with 6 columns containing the SNP information of the probes:
+
+```{r}
+snps <- getSnpInfo(gset)
+head(snps,10)
+```
+
+*Probe*, *CpG* and *SBE* correspond the SNPs present inside the probe body, at the CpG interrogation and at the single nucleotide extension respectively. The columns with *rs* give the names of the SNPs while the columns with *maf* gives the minor allele frequency of the SNPs based on the dbSnp database. The function *addSnpInfo* will add to the *GenomicRanges* of the *GenomicRatioSet* the 6 columns: 
+
+```{r}
+gset <- addSnpInfo(gset)
+```
+
+We strongly recommend to drop the probes that contain either a SNP at the CpG interrogation or at the single nucleotide extension.The function *dropLociWithSnps* allows to drop the corresponding probes. Here is an example where we drop the probes containing a SNP at the CpG interrogation and/or at the single nucleotide extension, for any minor allele frequency:
+
+
+%```{r}
+%gset <- dropLociWithSnps(gset, snps=c("SBE","CpG"), maf=0)
+%```
 
 
 
