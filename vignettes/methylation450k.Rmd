@@ -42,14 +42,8 @@ opts_chunk$set(message = FALSE, error = FALSE, warning = FALSE)
 
 # Contents
 
-* [Counting reads](#count)
-* [Building a DESeqDataSet](#construct)
-* [Visual exploration](#eda)
-* [Differential expression](#de)
-* [Diagnostic plots](#diagnostic)
-* [Annotation](#annotate)
-* [ReportingTools](#report)
-* [Ease of exchanging methods](#methods)
+* [Reading data](#read)
+* [Building a RGSet](#construct)
 
 # Introduction
 
