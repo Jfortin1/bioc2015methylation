@@ -80,3 +80,34 @@ $$Mval = \log{\biggl(\frac{M}{U}\biggr)}$$
 **Plate** Physical plate containing at most 8 slides (96 arrays). For this tutorial, we use **batch** and plate interchangeably. 
 
 
+## Reading Data
+The starting point of `r Biocpkg("minfi")` is reading the .IDAT files with the built-in function *read.450k.exp*. Several options are available: the user can specify the sample filenames to be read in along with the directory path, or can specify the directory that contains the files. In the latter case, all the files with the extension .IDAT located in the directory will be loaded into \R{}. The user can also read in a sample sheet, and then use the sample sheet to load the data into a *RGChannelSet*. For more information, see the \texttt{minfi} vignette. Here, we will load the dataset containing 6 samples from the `r Biocpkg("minfiData")` package using the sample sheet provided within the package:
+
+```{r}
+library(minfi)
+library(minfiData)
+baseDir <- system.file("extdata",package="minfiData")
+targets <- read.450k.sheet(baseDir)
+targets
+RGSet <- read.450k.exp(base = baseDir, targets = targets)
+```
+
+The class of RGSet is a *RGChannelSet* object. This is the initial object of a minfi analysis that contains the raw intensities in the green and red channels. Note that this object contains the intensities of the internal control probes as well. Because we read the data from a data sheet experiment, the phenotype data is also stored in the *RGChannelSet* and can be accessed via the accessor command *pData*:
+
+```{r}
+phenoData <- pData(RGSet)
+phenoData[,1:6]
+```
+
+The *RGChannelSet* stores also a manifest object that contains the probe design information of the array:
+
+```{r}
+manifest <- getManifest(RGSet)
+manifest
+head(getProbeInfo(manifest))
+```
+
+See the [minfi vignette](http://bioconductor.org/packages/release/bioc/vignettes/minfi/inst/doc/minfi.pdf) for more information. 
+
+
+
