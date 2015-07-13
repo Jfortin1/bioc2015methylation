@@ -216,7 +216,7 @@ To access the full annotation, one can use the command *getAnnotation*:
 ```{r}
 annotation <- getAnnotation(gset)
 names(annotation)
-`
+```
 
 
 
