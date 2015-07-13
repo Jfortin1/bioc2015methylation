@@ -165,3 +165,58 @@ All the plots above can be exported into a pdf file in one step using the functi
 qcReport(RGSet, pdf= "qcReport.pdf")
 ```
 
+## MethylSet and RatioSet
+A *MethylSet* objects contains the methylated and unmethylated signals, but no methylation summary measures such as Beta values of M values. 
+
+A *RatioSet* object is a class designed to store Beta values and/or M values instead of the methylated and unmethylated signals. An optional copy number matrix, *CN*, the sum of the methylated and unmethylated signals, can be also stored. Mapping a *MethylSet* to a *RatioSet* is irreversible, i.e. one cannot technically retrieve the methylated and unmethylated signals from a *RatioSet*.  A *RatioSet* can be created with the function *ratioConvert*:
+
+```{r}
+ratioSet <- ratioConvert(MSet, what = "both", keepCN = TRUE)
+ratioSet
+```
+
+The functions *getBeta*, *getM* and *getCN* return respectively the Beta value matrix, M value matrix and a the Copy Number matrix. 
+
+```{r}
+beta <- getBeta(ratioSet)
+```
+
+## Map to Genome
+
+The function *mapToGenome* applied to a *RatioSet* object will add genomic coordinates to each probe together with some additional annotation information. The output object is a *GenomicRatioSet* (class holding M or/and Beta values together with associated genomic coordinates). It is possible to merge the manifest object with the genomic locations by setting the option *mergeManifest* to *TRUE*.
+
+```{r}
+gset <- mapToGenome(ratioSet)
+gset
+```
+
+Note that the *GenomicRatioSet* extends the class *SummarizedExperiment*. Here are the main accessors functions to access the data:
+
+```{r}
+beta <- getBeta(gset)
+m <- getM(gset)
+cn <- getCN(gset)
+```
+
+```{r}
+sampleNames <- sampleNames(gset)
+probeNames <- featureNames(gset)
+pheno <- pData(gset)
+```
+  
+To return the probe locations as a *GenomicRanges* objects, one can use the accessor *granges*:
+
+```{r}
+gr <- granges(gset)
+head(gr, n= 3)
+```
+
+To access the full annotation, one can use the command *getAnnotation*:
+
+```{r}
+annotation <- getAnnotation(gset)
+names(annotation)
+`
+
+
+
