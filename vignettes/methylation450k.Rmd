@@ -25,7 +25,7 @@ Date: July 13, 2015
   src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
 </script>
 
-# 450k methylation analysis workflow with minfi
+# 450k methylation workflow with minfi
 
 Jean-Philippe Fortin [1], Kasper Daniel Hansen [1,2]
 
