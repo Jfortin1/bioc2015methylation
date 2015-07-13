@@ -1,0 +1,413 @@
+\documentclass[12pt]{article}
+\usepackage{times}
+\usepackage{amsmath}
+\usepackage{color,hyperref}
+\usepackage[numbers]{natbib}
+  \usepackage{graphicx}
+  \usepackage{parskip}
+  \usepackage{fullpage}
+\usepackage{amsthm}
+\hypersetup{colorlinks,breaklinks,
+            linkcolor=darkblue,urlcolor=darkred,
+            anchorcolor=darkblue,citecolor=darkblue}
+\definecolor{darkblue}{rgb}{0.0,0.0,0.75}
+\definecolor{darkred}{rgb}{0.75,0.0,0}
+\newcommand{\Rcode}[1]{{\texttt{#1}}}
+\newcommand{\Rpackage}[1]{\textsf{#1}}
+\newcommand{\software}[1]{\textsf{#1}}
+\newcommand{\R}{\software{R}}
+\newcommand{\fixme}[1]{{\color{red} #1}}
+\newcommand{\minfi}{\software{minfi}}
+
+
+
+\title{\textbf{450K Analysis Workshop} \\ \textbf{Minfi tutorial}}
+\author{\\ Jean-Philippe Fortin \quad Kasper D. Hansen \\  Martin J. Aryee \quad Rafael Irizarry }
+\date{London, May 2014}
+\usepackage{Sweave}	
+\begin{document}
+\maketitle
+
+
+%%%%%%%%%%%%%%%%% Introduction
+\section{Introduction}
+The goal of the tutorial is to present a standard analysis workflow of 450K data with the package \Rpackage{minfi}, incorporating the functions recently added to the package. We invite you to read the software paper recently published \citep{minfi} and the online package vignette on the Bioconductor project \citep{Bioc} for more details. \\
+\\
+We will start from the very beginning by reading input raw data (IDAT files) from an example dataset, and ending with a list of candidate genes for differential methylation. Among others, we will cover quality control assessments, different within-array and between-array normalizations, SNPs removal, sex prediction, differentially methylated positions (DMPs) analysis and bump hunting for differentially methylated regions (DMRs). \\
+\\ 
+If time permits, we will introduce a complementary interactive visualization tool package, \Rpackage{shinyMethyl} that allows interactive quality control assessment. \citep{shinymethyl} You can download the package online from \texttt{gitHub} \citep{shinyMethyl:github} and try it online at  \url{http://spark.rstudio.com/jfortin/shinyMethyl/}
+\subsection*{450k Array design and terminology}
+In this section, we introduce briefly the 450K array as well as the terminology used throughout the \Rpackage{minfi} package. 
+Each sample is measured on a single array, in two different color channels (red and green). As the name of the platform indicates, each array measures more than 450,000 CpG positions. For each CpG, we have two measurements: a methylated intensity and an unmethylated intensity. Depending on the probe design, the signals are reported in different colors:
+\\
+\\
+For \textbf{Type I} design, both signals are measured in the same color: one probe for the methylated signal and one probe for the unmethylated signal.
+\\
+\\
+For \textbf{Type II} design, only one probe is used. The  \textbf{\textcolor[rgb]{0,0.6,0}{Green}} intensity measures the methylated signal, and the  \textbf{\textcolor[rgb]{0.7,0,0}{Red}} intensity measures the unmethylated signal. 
+
+
+\subsection*{Some definitions}
+Two commonly measures are used to report the methylation levels: Beta values and M values. \\
+\\
+\textbf{Beta value}: 
+\begin{equation*}
+\beta = \frac{M}{M + U + 100}
+\end{equation*}
+where $M$ and $U$ denote the methylated and unmethylated signals respectively. 
+\\
+\\
+\textbf{MValue}:
+\begin{equation*}
+Mval = \log{\biggl(\frac{M}{U}\biggr)}
+\end{equation*}
+\\
+\\
+\textbf{DMP:}  Differentially methylated position: single genomic position that has a different methylated level in two different groups of samples (or conditions)
+\\
+\\
+\textbf{DMR}: Differentially methylated region: when consecutive genomic locations are differentially methylated in the same direction. 
+\\
+\\
+\textbf{Array}: One sample 
+\\
+\\
+\textbf{Slide}: Physical slide containing 12 arrays ($6 \times 2$ grid)
+\\
+\\
+\textbf{Plate:} Physical plate containing at most 8 slides (96 arrays). For this tutorial, we use \textbf{batch} and plate interchangeably. 
+\\
+\\
+%%%% Reading data
+\section{Reading Data}
+The starting point of \Rpackage{minfi} is reading the .IDAT files with the built-in function \Rcode{read.450k.exp}. Several options are available: the user can specify the sample filenames to be read in along with the directory path, or can specify the directory that contains the files. In the latter case, all the files with the extension .IDAT located in the directory will be loaded into \R{}. The user can also read in a sample sheet, and then use the sample sheet to load the data into a \Rcode{RGChannelSet}. For more information, see the \texttt{minfi} vignette. Here, we will load the dataset containing 6 samples from the \texttt{minfiData} package using the sample sheet provided within the package:
+<<eval=TRUE>>=
+require(minfi)
+require(minfiData)
+@
+<<eval=TRUE>>=
+baseDir <- system.file("extdata",package="minfiData")
+targets <- read.450k.sheet(baseDir)
+targets
+RGSet <- read.450k.exp(base = baseDir, targets = targets)
+@
+The class of RGSet is a \Rcode{RGChannelSet} object. This is the initial object of a \minfi{} analysis that contains the raw intensities in the green and red channels. Note that this object contains the intensities of the internal control probes as well. Because we read the data from a data sheet experiment, the phenotype data is also stored in the \Rcode{RGChannelSet} and can be accessed via the accessor command \Rcode{pData}:
+<<eval=TRUE>>=
+phenoData <- pData(RGSet)
+phenoData[,1:6]
+@
+The \Rcode{RGChannelSet} stores also a manifest object that contains the probe design information of the array:
+<<eval=TRUE>>=
+manifest <- getManifest(RGSet)
+manifest
+head(getProbeInfo(manifest))
+@
+See the \minfi{} vignette for more information. 
+\section{Quality control}
+% QC plot
+\subsubsection*{QC plot}
+\minfi{} provides a simple quality control plot that uses the log median intensity in both the methylated (M) and unmethylated (U) channels. When plotting these two medians against each other, it has been observed that good samples cluster together, while failed samples tend to separate and have lower median intensities \citep{minfi}. In order to obtain the methylated and unmethylated signals, we need to convert the \Rcode{RGChannelSet} to an object containing the methylated and unmethylated signals using the function \Rcode{preprocessRaw}. It takes as input a \Rcode{RGChannelSet} and converts the red and green intensities to methylated and unmethylated signals according to the special 450K probe design, and returns the converted signals in a new object of class \Rcode{MethylSet}. It does not perform any normalization.
+<<eval=TRUE>>=
+MSet <- preprocessRaw(RGSet) 
+MSet
+@
+The accessors \Rcode{getMeth} and \Rcode{getUnmeth} can be used to get the methylated and unmethylated intensities matrices:
+<<eval=TRUE>>=
+head(getMeth(MSet)[,1:3])
+head(getUnmeth(MSet)[,1:3])
+@
+The functions \Rcode{getQC} and \Rcode{plotQC} are designed to extract and plot the quality control information from the \Rcode{MethylSet}:
+<<fig=TRUE, eval=TRUE>>=
+qc <- getQC(MSet)
+head(qc)
+plotQC(qc)
+@
+Moreover, the function \Rcode{addQC} applied to the \Rcode{MethylSet} will add the QC information to the phenotype data. 
+
+To further explore the quality of the samples, it is useful to look at the Beta value densities of the samples, with the option to color the densities by group:
+<<fig=T,eval=TRUE>>=
+densityPlot(MSet, sampGroups = phenoData$Sample_Group)
+@
+or density bean plots:
+<<fig=T,eval=TRUE>>=
+densityBeanPlot(MSet, sampGroups = phenoData$Sample_Group)
+@
+\Rpackage{shinyMethyl} \citep{shinymethyl} is particularly useful to visualize all plots at the same time in an interactive fashion. 
+\subsubsection*{Control probes plot}
+The 450k array contains several internal control probes that can be used to assess the quality control of different sample preparation steps (bisulfite conversion, hybridization, etc.). The values of these control probes are stored in the initial \Rcode{RGChannelSet} and can be plotted by using the function \Rcode{controlStripPlot} and by specifying the control probe type:
+<<eval=TRUE>>=
+controlStripPlot(RGSet, controls="BISULFITE CONVERSION II")
+@
+All the plots above can be exported into a pdf file in one step using the function \Rcode{qcReport}:
+<<eval=TRUE>>=
+qcReport(RGSet, pdf= "qcReport.pdf")
+@
+%%% MethylSet and RatioSet
+\section{MethylSet and RatioSet}
+A \Rcode{MethylSet} objects contains the methylated and unmethylated signals, but no methylation summary measures such as Beta values of M values. 
+\\
+\\
+A \Rcode{RatioSet} object is a class designed to store Beta values and/or M values instead of the methylated and unmethylated signals. An optional copy number matrix, \Rcode{CN}, the sum of the methylated and unmethylated signals, can be also stored. Mapping a \Rcode{MethylSet} to a \Rcode{RatioSet} is irreversible, i.e. one cannot technically retrieve the methylated and unmethylated signals from a \Rcode{RatioSet}.  A \Rcode{RatioSet} can be created with the function \Rcode{ratioConvert}:
+<<eval=TRUE>>=
+ratioSet <- ratioConvert(MSet, what = "both", keepCN = TRUE)
+ratioSet
+@
+The functions \Rcode{getBeta}, \Rcode{getM} and \Rcode{getCN} return respectively the Beta value matrix, M value matrix and a the Copy Number matrix. 
+<<eval=TRUE>>=
+beta <- getBeta(ratioSet)
+@
+%%% Map to Genome
+\section{Map to Genome}
+The function \Rcode{mapToGenome} applied to a \Rcode{RatioSet} object will add genomic coordinates to each probe together with some additional annotation information. The output object is a \Rcode{GenomicRatioSet} (class holding M or/and Beta values together with associated genomic coordinates). It is possible to merge the manifest object with the genomic locations by setting the option \Rcode{mergeManifest} to \Rcode{TRUE}.
+<<eval=TRUE>>=
+gset <- mapToGenome(ratioSet)
+gset
+@
+Note that the \texttt{GenomicRatioSet} extends the class \texttt{SummarizedExperiment}. Here are the main accessors functions to access the data:
+<<eval=TRUE>>=
+beta <- getBeta(gset)
+m <- getM(gset)
+cn <- getCN(gset)
+@
+<<eval=TRUE>>=
+sampleNames <- sampleNames(gset)
+probeNames <- featureNames(gset)
+pheno <- pData(gset)
+@ 
+To return the probe locations as a \Rcode{GenomicRanges} objects, one can use the accessor \Rcode{granges}:
+<<eval=TRUE>>=
+gr <- granges(gset)
+head(gr, n= 3)
+@
+To access the full annotation, one can use the command \Rcode{getAnnotation}:
+<<eval=TRUE>>=
+annotation <- getAnnotation(gset)
+names(annotation)
+@
+%%% SNPs
+\section{SNPs}
+\fixme{option for the version of the dbSnp database}
+Because the presence of SNPs inside the probe body or at the nucleotide extension can have important consequences on the downstream analysis, \minfi{} offers the possibility to remove such probes. The function \Rcode{getSnpInfo}, applied to a \Rcode{GenomicRatioSet}, returns a data frame with 6 columns containing the SNP information of the probes:
+<<eval=TRUE>>=
+snps <- getSnpInfo(gset)
+head(snps,10)
+@
+\Rcode{Probe}, \Rcode{CpG} and \Rcode{SBE} correspond the SNPs present inside the probe body, at the CpG interrogation and at the single nucleotide extension respectively. The columns with \Rcode{rs} give the names of the SNPs while the columns with \Rcode{maf} gives the minor allele frequency of the SNPs based on the dbSnp database. The function \Rcode{addSnpInfo} will add to the \Rcode{GenomicRanges} of the \Rcode{GenomicRatioSet} the 6 columns.: 
+<<eval=FALSE>>=
+gset <- addSnpInfo(gset)
+@
+We strongly recommend to drop the probes that contain either a SNP at the CpG interrogation or at the single nucleotide extension. \fixme{The following is not yet released, but can be found in minfiLocal}. The function \Rcode{dropSnpProbes} allows to drop the corresponding probes. Here is an example where we drop the probes containing a SNP at the CpG interrogation and/or at the single nucleotide extension, for any minor allele frequency:
+<<eval=FALSE>>=
+gset <- dropSnpProbes(gset, snps=c("SBE","CpG"), maf=0)
+@
+%%% Preprocessing and normalization
+\section{Preprocessing and normalization}
+So far, we did not use any normalization to process the data. Different normalization procedures are available in \minfi{}.
+\subsection*{preprocessRaw}
+As seen before, it converts a \Rcode{RGChannelSet} to a \Rcode{MethylSet} by converting the Red and Green channels into a matrix of methylated signals and a matrix of unmethylated signals. No normalization is performed. 
+\\
+\\
+Input: \Rcode{RGChannelSet}\\
+Output: \Rcode{MethylSet}
+%%% preprocessIllumina
+\subsection*{preprocessIllumina}
+Convert a \Rcode{RGChannelSet} to a \Rcode{MethylSet} by implementing the preprocessing choices as available in Genome Studio: background subtraction and control normalization. Both of them are optional and turning them off is equivalent to raw preprocessing (\Rcode{preprocessRaw}):
+<<eval=TRUE>>=
+MSet.illumina <- preprocessIllumina(RGSet, bg.correct = TRUE,
+                               normalize = "controls")
+@
+Input: \Rcode{RGChannelSet}\\
+Output: \Rcode{MethylSet}
+%%% preprocessSWAN
+\subsection*{preprocessSWAN}
+Perform Subset-quantile within array normalization (SWAN) \citep{swan}, a within-array normalization correction for the technical differences between the Type I and Type II array designs. The algorithm matches the Beta-value distributions of the Type I and Type II probes by applying a within-array quantile normalization separately for different subsets of probes (divided by CpG content). The input of SWAN is a \texttt{MethylSet}, and the function returns a \texttt{MethylSet} as well. If an \texttt{RGChannelSet} is provided instead, the function will first call \texttt{preprocessRaw} on the \texttt{RGChannelSet}, and then apply the SWAN normalization. We recommend setting a seed (using \texttt{set.seed}) before using \texttt{preprocessSWAN} to ensure that the normalized intensities will be reproducible. 
+<<eval=TRUE>>=
+MSet.swan <- preprocessSWAN(RGSet)
+@  
+Input: \Rcode{RGChannelSet} or \Rcode{MethylSet}\\
+Output: \Rcode{MethylSet}
+
+%%% PreprocessQuantile
+\subsection*{preprocessQuantile}
+This function implements stratified quantile normalization preprocessing.  The normalization procedure is applied to the Meth and Unmeth intensities separately. The distribution of type I and type II signals is forced to be the same by first quantile normalizing the type II probes across samples and then interpolating a reference distribution to which we normalize the type I probes. Since probe types and probe regions are confounded and we know that DNAm distributions vary across regions we stratify the probes by region before applying this interpolation. Note that this algorithm relies on the assumptions necessary for quantile normalization to be applicable and thus is not recommended for cases where global changes are expected such as in cancer-normal comparisons. Note that this normalization procedure is essentially similar to one previously presented \citep{Touleimat:2012}. The different options can be summarized into the following list:
+\begin{itemize}
+\item[1)] If \Rcode{fixMethOutlier} is \Rcode{TRUE}, the functions fixes outliers of both the methylated and unmethylated channels when small intensities are close to zero. 
+\item[2)] If \Rcode{removeBadSamples} is \Rcode{TRUE}, it removes bad samples using the QC criterion discussed previously 
+\item[3)] Performs stratified subset quantile normalization if \Rcode{quantileNormalize=TRUE} and \Rcode{stratified=TRUE}
+\item[4)] Predicts the sex (if not provided in the \Rcode{sex} argument)  using the function \Rcode{getSex} and normalizes males and females separately for the probes on the X and Y chromosomes 
+\end{itemize}
+<<eval=TRUE>>=
+gset.quantile <- preprocessQuantile(RGSet, fixOutliers = TRUE,
+removeBadSamples = TRUE, badSampleCutoff = 10.5,
+quantileNormalize = TRUE, stratified = TRUE, 
+mergeManifest = FALSE, sex = NULL)
+@
+Input: \Rcode{RGChannelSet}\\
+Output: \Rcode{GenomicRatioSet}
+\\
+\\
+Note that the function returns a \Rcode{GenomicRatioSet} object ready for downstream analysis. 
+%%% preprocessFunnorm
+\subsection*{preprocessFunnorm}
+The function \Rcode{preprocessFunnorm} implements the functional normalization algorithm developed in \citep{funnorm}. Briefly, it uses the internal control probes present on the array to infer between-array technical variation. It is particularly useful for studies comparing conditions with known large-scale differences, such as cancer/normal studies, or between-tissue studies. It has been shown that for such studies, functional normalization outperforms other existing approaches \citep{funnorm}. By default, is uses the first two principal components of the control probes to infer the unwanted variation. 
+<<eval=TRUE>>=
+gset.funnorm <- preprocessFunnorm(RGSet)
+@
+Input: \Rcode{RGChannelSet}\\
+Output: \Rcode{GenomicRatioSet}
+\\
+\\
+As the \Rcode{preprocessQuantile} function, it returns a \Rcode{GenomicRatioSet} object. 
+%%% dmpFinder
+\section{dmpFinder: to find differentially methylated positions (DMPs)}
+While we do not encourage particularly a single position differential methylation analysis, \minfi{} implements a simple algorithm called \Rcode{dmpFinder} to find differentially methylated positions with respect to a phenotype covariate. The phenotype may be categorical (e.g. cancer vs. normal) or continuous (e.g. blood pressure). Below is an example of a DMP analysis for age using the \Rcode{gset.funnorm} object created above:
+<<eval=TRUE>>=
+beta <- getBeta(gset.funnorm)
+age  <- pData(gset.funnorm)$age
+dmp <- dmpFinder(beta, pheno = age  , type = "continuous")
+head(dmp)
+@
+%%% Bumphunter
+\section{Bumphunter: to find differentially methylated regions (DMRs)}
+The \Rcode{bumphunter} function in \Rpackage{minfi} is a version of the bump hunting algorithm \citep{bumphunter} adapted to the 450k array, relying on the \Rcode{bumphunter} function implemented in the eponym package \Rpackage{bumphunter} \citep{bumphunter:manual}. \\
+\\
+Instead of looking for association between a single genomic location and a phenotype of interest, \texttt{bumphunter} looks for genomic regions that are differentially methylated between two conditions. In the context of the 450k array, the algorithm first defines \textit{clusters} of probes. Clusters are simply groups of probes such that two consecutive probe locations in the cluster are not separated by more than some distance \texttt{mapGap}. 
+% \subsection*{Underlying statistical model for bumphunter}
+%We assume that we have data $Y_{ij}$, here Beta-values of M-values, where $i$ represents biological replicate, and $l_j$ represents a genomic location. The basis statistical model is 
+%\begin{equation*}
+%Y_{ij} = \beta_0(l_j) + \beta_1(l_j)X_j + \epsilon_{ij}
+%\end{equation*}
+%with $i$ representing subject, $l_j$ representing the $j$th location, $X_j$ is the covariate of interest (for example $X_j=1$ for cases and $X_j=0$ otherwise), $\epsilon_{ij}$ is measurement error, $\beta_0(l)$ is a baseline function, and $\beta_1(l)$ is the parameter of interest, which is a function of location. We assume that $\beta_1(l)$ will be equal to zero over most of the genome, and we want to identify segments where $\beta_1 \not = 0$, which we call \textbf{bumps}. 
+Briefly, the algorithm first computes a t-statistic at each genomic location, with optional smoothing. Then, it defines a candidate region to be a cluster of probes for which all the t-statistics exceed a predefined threshold. To test for significance of the candidate regions, the algorithm uses permutations (defined by the parameter $B$). The permutation scheme is expensive, and can take a few days when the number of candidate bumps is large. To avoid wasting time, we propose the following guideline:
+\begin{itemize}
+\item Define your phenotype of interest
+<<eval=FALSE>>=
+pheno <- pData(gset.funnorm)$status
+designMatrix <- model.matrix(~ pheno)
+@
+\item Run the algorithm with $B=0$ permutation on the Beta-values, with a medium difference cutoff, say $0.2$ (which corresponds to $20\%$ difference on the Beta-values):
+<<eval=FALSE>>=
+dmrs <- bumphunter(gset.funnorm, design = designMatrix, 
+             cutoff = 0.2, B=0, type="Beta")
+@
+\item If the number of candidate bumps is large, say $>30000$, increase the cutoff to reduce the number of candidate bumps. The rationale behind this is that the most of the additional candidate regions found by lowering the cutoff will be found to be non-significant after the permutation scheme,  and therefore time can be saved by being more stringent on the cutoff (high cutoff).  
+\item Once you have decided on the cutoff, run the algorithm with a large number of permutations, say $B=1000$:
+<<eval=FALSE>>=
+dmrs <- bumphunter(gset.funnorm, design = designMatrix, 
+             cutoff = 0.2, B=1000, type="Beta")
+@
+\end{itemize}
+
+Since the permutation scheme can be expensive, parallel computation is implemented in the \Rcode{bumphunter} function. The \Rpackage{foreach} package allows different parallel ``back-ends" that will distribute the computation across multiple cores in a single machine, or across machines in a cluster. For instance, if one wished to use 3 cores, the two following commands have to be run before running bumphunter:
+<<eval=FALSE>>=
+library(doParallel)registerDoParallel(cores = 3)
+@
+The results of \Rcode{bumphunter} are stored in a data frame with the rows being the different differentially methylated regions (DMRs): 
+<<eval=FALSE>>=
+names(dmrs)
+head(dmrs$table, n=3)
+@
+As an example, we have run the bump hunting algorithm to find DMRs between colon and kidney (20 samples each from TCGA), with $B=1000$ permutations, and a cutoff of 0.2 on the Beta values: 
+<<eval=TRUE,echo=FALSE>>=
+load("data/dmrs_B1000_c02.Rda")
+head(dmrs$table)
+@
+The \Rcode{start} and \Rcode{end} columns indicate the limiting genomic locations of the DMR; the \Rcode{value} column indicates the average difference in methylation in the bump, and the \Rcode{area} column indicates the area of the bump with respect to the 0 line. The \Rcode{fwer} column returns the family-wise error rate (FWER) of the regions estimated by the permeation scheme. One can filter the results by picking a cutoff on the FWER. 
+% Other important topics
+\section{Other important topics}
+% Batch effects correction 
+\subsection*{Batch effects correction with SVA}
+
+Surrogate variable analysis (SVA) \citep{sva1,sva2} is a useful tool to identified surrogate variables for unwanted variation while protecting for a phenotype of interest. In our experience, running SVA after normalizing the 450K data with \Rcode{preprocessFunnorm} or \Rcode{preprocessQuantile} increases the statistical power of the downstream analysis. For instance, to run SVA on the M-values, protecting for case-control status, the following code can be used to estimate the surrogate variables (this can take a few hours to run):
+<<eval=FALSE>>=
+require(sva)
+mval <- getM(gset)
+pheno <- pData(gset)
+mod <- model.matrix(~as.factor(status), data=pheno)
+mod0 <- model.matrix(~1, data=pheno)
+sva.results <- sva(mval, mod, mod0)
+@
+Once the surrogate variables are computed, one can include them in the downstream analysis to adjust for unknown unwanted variation. See \Rpackage{sea} package vignette for a more comprehensive use of \Rcode{sva}. 
+
+%Cross-reactive probes
+\subsection*{Cross-reactive probes}
+It has been previously reported than about $6\%$ of the probes on the 450K array co-hybridize to alternate genomic sequences, therefore potentially generating spurious signals \citep{chen:2013}. We have included an optional function in \minfi{} that drops these cross-reactive probes. The function can be either applied to a \Rcode{[Genomic]MethylSet} or a \Rcode{[Genomic]RatioSet}:
+ \fixme{function not yet in minfi, but in minfiLocal}
+<<eval=FALSE>>=
+gset <- dropCrossReactiveProbes(gset)
+@
+
+% Cell Count Estimates
+\subsection*{Cell Type Composition}
+As shown in \citep{rafa:2014}, biological findings in blood samples can often be confounded with cell type composition. In order to estimate the confounding levels between phenotype and cell type composition, the function \Rcode{estimateCellCounts} depending on the package \Rpackage{FlowSorted.Blood.450k} \citep{celltype} estimates the cell type composition of blood samples by using a modified version of the algorithm described in \citep{houseman}. The function takes as input a \Rcode{RGChannelSet} and returns a cell counts vector for each samples:
+<<eval=FALSE>>=
+require(FlowSorted.Blood.450k)
+cellCounts <- estimateCellCounts(RGSet)
+@
+
+
+% Block finder
+\subsection*{Block finder}
+The approximately 170,000 open sea probes on the 450K array can be used to detect long-range changes in methylation status. These large scale changes that can range up to several Mb have typically been identified only through whole-genome bisulfite sequencing. The function \Rcode{blockFinder} groups the average methylation values in open-sea probe cluster (via \Rcode{cpgCollapse}) into large regions, and then run the \Rcode{bumphunter} algorithm with a large (250KB+) smoothing window (see the bump hunting section for DMRs above).
+
+
+%%% Sex prediction
+\subsection*{Sex prediction}
+
+By looking at the median total intensity of the X chromosome-mapped probes, denoted $med(X)$, and the median total intensity of the Y-chromosome-mapped probes, denoted $med(Y)$, one can observe two different clusters of points corresponding to which gender the samples belong to. To predict the gender, \texttt{minfi} separate the points by using a cutoff on $\log_2{med(Y)}-\log_2{med(Y)}$. The default cutoff is $-2$.  Since the algorithm needs to map probes to the X-chr and to the Y-chr, the input of the function \texttt{getSex()} needs to be a \texttt{GenomicMethylSet} or a \texttt{GenomicRatioSet}. 
+<<eval=TRUE>>=
+predictedSex <- getSex(gset, cutoff = -2)$predictedSex
+head(predictedSex)
+@
+To choose the cutoff to separate the two gender clusters, one can plot $med(Y)$ against $med(Y)$ with the function \texttt{plotSex}:
+<<eval=TRUE>>=
+plotSex(getSex(gset, cutoff = -2))
+@
+Finally, the function \Rcode{addSex} applied to the \Rcode{GenomicRatioSet} will add the predicted sex to the phenotype data. 
+\textit{Remark}: the function does not handle datasets with only females or only males
+% For advanced users
+\section{Advanced functions}
+% getSnpBeta
+\subsection*{getSnpBeta}
+The array contains by design 65 probes that are not meant to interrogate methylation status, but instead are designed to interrogate SNPs. By default, \minfi{} drops these probes. The function \Rcode{getSnpBeta} \fixme{devel version} allows the user to extract the Beta values for those probes from an \Rcode{RGChannelSet}. The return object is a matrix with the columns being the samples and the rows being the different SNP probes:
+<<eval=FALSE>>=
+snps <- getSnpBeta(rgset)
+head(snaps)
+@
+These SNP probes are intended to be used for sample tracking and sample mixups. Each SNP probe ought to have values clustered around 3 distinct values corresponding to homo-, and hetero-zygotes.
+% getOOB
+\subsection*{Out-of-band (or ghost) probes}
+The function \Rcode{getOOB} applied to an \Rcode{RGChannelSet} retrieves the so-called ``out-of-band" (OOB) probes. These are the measurements of Type I probes in the ``wrong" color channel. The function returns a list with two matrices, named \Rcode{Red} and \Rcode{Grn}.
+<<eval=FALSE>>=
+oob <- getOOB(rgset)
+@
+
+% Exercises
+\section{Exercises}
+\begin{itemize}
+\item[1)] Before processing a RGChannelSet further, could you remove the probes which failed more than $50\%$ of the samples in the example dataset?
+\item[2)] For the top loci that we found differentially methylated for the predicted sex, could you tell if those loci are mostly mapped to the X and Y chromosomes? 
+\item[3)] It is known that the Beta-value distribution of the Type I probes is different from the Beta value distribution of the Type II probes. Can you verify this with by plotting the Beta-value distribution density for each type separately?  
+\end{itemize}
+
+%%%FIGURE 1
+ \begin{figure}
+\centering
+\includegraphics[scale=0.20]{images/designNew.png}
+\caption{\textbf{Probe design of the 450k array} For \textbf{Type I} design, both signals are measured in the same color: one probe for the methylated signal and one probe for the unmethylated signal. For \textbf{Type II} design, only one probe is used. The  \textbf{\textcolor[rgb]{0,0.6,0}{Green}} intensity measures the methylated signal, and the  \textbf{\textcolor[rgb]{0.7,0,0}{Red}} intensity measures the unmethylated signal. 
+ }
+\end{figure}
+
+%%%FIGURE 1
+ \begin{figure}
+\centering
+\includegraphics[scale=0.35]{images/flowChart.png}
+\caption{Flow chart of the \texttt{minfi}'s functions}
+\end{figure}
+
+
+\bibliographystyle{unsrtnat}
+\bibliography{london_lab}
+
+
+\end{document}
