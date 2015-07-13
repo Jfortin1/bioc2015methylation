@@ -491,6 +491,12 @@ cellCounts <- estimateCellCounts(RGSet)
 
 ## A/B compartments prediction.
 
+The function *compartments* extracts A/B compartments from Illumina methylation microarrays. Analysis of Hi-C data has shown that the genome can be divided into two compartments (A/B compartments) that are cell-type specific and are associated with open and closed chromatin respectively. The approximately 170,000 open sea probes on the 450k array can be used to estimate these compartments by computing the first eigenvector on a binned correlation matrix. The binning resolution can be specified by *resolution*, and by default is set to a 100 kb. We do not recommend higher resolutions because of the low-resolution probe design of the 450k array. For instance, to extract the compartments for chromosome 12, one can use
+
+```{r, eval=FALSE}
+ab <- compartments(grset.quantile, chr="chr14", resolution=100*1000)
+```
+
 ## Advanced functions
 
 #### getSnpBeta
