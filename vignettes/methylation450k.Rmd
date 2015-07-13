@@ -53,6 +53,7 @@ opts_chunk$set(message = FALSE, error = FALSE, warning = FALSE)
 * [Batch effect removal with SVA](#sva)
 * [Cell type composition estimates](#celltype)
 * [Sex prediction](#sex)
+* [A/B genome compartments](#ab)
 
 # Introduction
 
