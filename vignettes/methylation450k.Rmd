@@ -336,20 +336,12 @@ dmp <- dmpFinder(beta, pheno = age  , type = "continuous")
 head(dmp)
 ```
  
-## A/B compartments prediction.
+
 
 ## Block finder.
 
 The approximately 170,000 open sea probes on the 450K array can be used to detect long-range changes in methylation status. These large scale changes that can range up to several Mb have typically been identified only through whole-genome bisulfite sequencing. The function *blockFinder* groups the average methylation values in open-sea probe cluster (via *cpgCollapse*) into large regions, and then run the *bumphunter* algorithm with a large (250KB+) smoothing window (see the bump hunting section for DMRs above).
 
-## Cell Type Composition
-
-As shown in \citep{rafa:2014}, biological findings in blood samples can often be confounded with cell type composition. In order to estimate the confounding levels between phenotype and cell type composition, the function *estimateCellCounts* depending on the package `r Biocpkg("FlowSorted.Blood.450k")` estimates the cell type composition of blood samples by using a modified version of the algorithm described in \citep{houseman}. The function takes as input a *RGChannelSet* and returns a cell counts vector for each samples:
-
-```{r}
-library(FlowSorted.Blood.450k)
-cellCounts <- estimateCellCounts(RGSet)
-```
 
 
 
@@ -390,23 +382,27 @@ Finally, the function *addSex* applied to the *GenomicRatioSet* will add the pre
 
 ## Advanced functions
 
+### A/B compartments prediction.
+
+The function *compartments* ...
+
 ### getSnpBeta
 
 The array contains by design 65 probes that are not meant to interrogate methylation status, but instead are designed to interrogate SNPs. By default, minfi drops these probes. The function *getSnpBeta*  allows the user to extract the Beta values for those probes from an *RGChannelSet*. The return object is a matrix with the columns being the samples and the rows being the different SNP probes:
 
 ```{r}
-snps <- getSnpBeta(rgset)
-head(snaps)
+snps <- getSnpBeta(RGSet)
+head(snps)
 ```
 
 These SNP probes are intended to be used for sample tracking and sample mixups. Each SNP probe ought to have values clustered around 3 distinct values corresponding to homo-, and hetero-zygotes.
 
 ### Out-of-band probes
 
-The function *getOOB* applied to an *RGChannelSet* retrieves the so-called *out-of-band* (OOB) probes. These are the measurements of Type I probes in the ``wrong" color channel. The function returns a list with two matrices, named *Red* and *Grn*.
+The function *getOOB* applied to an *RGChannelSet* retrieves the so-called *out-of-band* (OOB) probes. These are the measurements of Type I probes in the ``wrong" color channel. They are used in the *preprocessNoob* and *preprocessFunnorm* functions to estimate background noise. The function returns a list with two matrices, named *Red* and *Grn*.
 
 ```{r}
-oob <- getOOB(rgset)
+oob <- getOOB(RGSet)
 ```
 
 
