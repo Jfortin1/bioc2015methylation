@@ -478,6 +478,15 @@ Finally, the function *addSex* applied to the *GenomicRatioSet* will add the pre
 
 ## Cell type composition
 
+\subsection*{Cell Type Composition}
+As shown in \citep{rafa:2014}, biological findings in blood samples can often be confounded with cell type composition. In order to estimate the confounding levels between phenotype and cell type composition, the function \Rcode{estimateCellCounts} depending on the package `r Biocpkg("FlowSorted.Blood.450k")`estimates the cell type composition of blood samples by using a modified version of the algorithm described in \citep{houseman}. The function takes as input a *RGChannelSet* and returns a cell counts vector for each samples:
+
+```{r, eval=FALSE}
+library(FlowSorted.Blood.450k)
+cellCounts <- estimateCellCounts(RGSet)
+```
+
+
 <a id="ab"></a>
 
 ## A/B compartments prediction.
