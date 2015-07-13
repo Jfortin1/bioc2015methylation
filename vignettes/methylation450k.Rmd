@@ -182,7 +182,7 @@ qcReport(RGSet, pdf= "qcReport.pdf")
 <a id="methylset"></a>
 
 ## MethylSet and RatioSet
-A *MethylSet* objects contains the methylated and unmethylated signals, but no methylation summary measures such as Beta values of M values. 
+A *MethylSet* objects contains only the methylated and unmethylated signals.
 
 A *RatioSet* object is a class designed to store Beta values and/or M values instead of the methylated and unmethylated signals. An optional copy number matrix, *CN*, the sum of the methylated and unmethylated signals, can be also stored. Mapping a *MethylSet* to a *RatioSet* is irreversible, i.e. one cannot technically retrieve the methylated and unmethylated signals from a *RatioSet*.  A *RatioSet* can be created with the function *ratioConvert*:
 
@@ -265,7 +265,7 @@ gset <- dropLociWithSnps(gset, snps=c("SBE","CpG"), maf=0)
 
 ## Preprocessing and normalization
 
-So far, we did not use any normalization to process the data. Different normalization procedures are available in `r Biocpkg("minfi")`.
+So far, we did not use any normalization to process the data. Different normalization procedures are available in `r Biocpkg("minfi")`. Many people have asked us which normalization they should apply to their dataset. Our rule of thumb is the following. If there exist global biological methylation differences between your samples, as for instance a dataset with cancer and normal samples, or a dataset with different tissues/cell types, use the *preprocessFunnorm* function as it is aimed for such datasets. On the other hand, if you do not expect global differences between your samples, for instance a blood dataset, or one-tissue dataset, use the *preprocessQuantile* function. In our experience, these two normalization procedures perform always better than the functions *preprocessRaw*, *preprocessIllumina* and *preprocessSWAN* discussed below. For convenience, these functions are still implemented in the minfi package. 
 
 <a id="raw"></a>
 
