@@ -1,0 +1,4 @@
+- Add section on A/B compartments
+- Add references for noob, swan, funnorm and a/b compartments
+- Add data for bumphunter, and figures
+- Make clear flow chart of the processing
