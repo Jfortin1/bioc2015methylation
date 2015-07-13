@@ -363,7 +363,7 @@ dmrs <- bumphunter(gset.funnorm, design = designMatrix,
 ```
 \item If the number of candidate bumps is large, say $>30000$, increase the cutoff to reduce the number of candidate bumps. The rationale behind this is that the most of the additional candidate regions found by lowering the cutoff will be found to be non-significant after the permutation scheme,  and therefore time can be saved by being more stringent on the cutoff (high cutoff).  
 \item Once you have decided on the cutoff, run the algorithm with a large number of permutations, say *B=1000*:
-```{r}
+```{r, eval=FALSE}
 dmrs <- bumphunter(gset.funnorm, design = designMatrix, 
              cutoff = 0.2, B=1000, type="Beta")
 ```
