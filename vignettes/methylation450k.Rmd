@@ -44,7 +44,7 @@ opts_chunk$set(message = FALSE, error = FALSE, warning = FALSE)
 
 * [Reading data](#read)
 * [Building a RGSet](#construct)
-
+* [bumphunter](#bumphunter)
 # Introduction
 
 The goal of the tutorial is to present a standard analysis workflow of 450K data with the package `r Biocpkg("minfi")`, incorporating the functions recently added to the package. We invite you to read the software paper recently published \citep{minfi} and the online package vignette on the Bioconductor project \citep{Bioc} for more details. 
@@ -339,8 +339,9 @@ dmp <- dmpFinder(beta, pheno = age  , type = "continuous")
 head(dmp)
 ```
  
+<a id="bumphunter"></a>
 
-## Bumphunter: to find differentially methylated regions (DMRs)
+## bumphunter: to find differentially methylated regions (DMRs)
 
 The *bumphunter* function in minfi is a version of the bump hunting algorithm \citep{bumphunter} adapted to the 450k array, relying on the *bumphunter* function implemented in the eponym package `r Biocpkg("bumphunter")` 
 
@@ -381,7 +382,7 @@ The results of *bumphunter* are stored in a data frame with the rows being the d
 ```{r,  eval=FALSE}
 names(dmrs)
 head(dmrs$table, n=3)
-@
+```
   
 As an example, we have run the bump hunting algorithm to find DMRs between colon and kidney (20 samples each from TCGA), with $B=1000$ permutations, and a cutoff of 0.2 on the Beta values:
   
