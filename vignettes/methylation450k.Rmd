@@ -325,8 +325,92 @@ Output: *GenomicRatioSet*
 
 As the *preprocessQuantile* function, it returns a *GenomicRatioSet* object.
  
+## dmpFinder: to find differentially methylated positions (DMPs)
+
+While we do not encourage particularly a single position differential methylation analysis, the function *dmpFinder* finds differentially methylated positions (DMPs) with respect to a phenotype covariate. The phenotype may be categorical (e.g. cancer vs. normal) or continuous (e.g. blood pressure). Below is an example of a DMP analysis for age using the *gset.funnorm* object created above:
+
+```{r}
+beta <- getBeta(gset.funnorm)
+age  <- pData(gset.funnorm)$age
+dmp <- dmpFinder(beta, pheno = age  , type = "continuous")
+head(dmp)
+```
  
- ## A/B compartments prediction
+## A/B compartments prediction.
+
+## Block finder.
+
+The approximately 170,000 open sea probes on the 450K array can be used to detect long-range changes in methylation status. These large scale changes that can range up to several Mb have typically been identified only through whole-genome bisulfite sequencing. The function *blockFinder* groups the average methylation values in open-sea probe cluster (via *cpgCollapse*) into large regions, and then run the *bumphunter* algorithm with a large (250KB+) smoothing window (see the bump hunting section for DMRs above).
+
+## Cell Type Composition
+
+As shown in \citep{rafa:2014}, biological findings in blood samples can often be confounded with cell type composition. In order to estimate the confounding levels between phenotype and cell type composition, the function *estimateCellCounts* depending on the package `r Biocpkg("FlowSorted.Blood.450k")` estimates the cell type composition of blood samples by using a modified version of the algorithm described in \citep{houseman}. The function takes as input a *RGChannelSet* and returns a cell counts vector for each samples:
+
+```{r}
+library(FlowSorted.Blood.450k)
+cellCounts <- estimateCellCounts(RGSet)
+```
+
+
+
+
+## Batch effects correction with SVA
+
+Surrogate variable analysis (SVA) \citep{sva1,sva2} is a useful tool to identified surrogate variables for unwanted variation while protecting for a phenotype of interest. In our experience, running SVA after normalizing the 450K data with \Rcode{preprocessFunnorm} or \Rcode{preprocessQuantile} increases the statistical power of the downstream analysis. For instance, to run SVA on the M-values, protecting for case-control status, the following code can be used to estimate the surrogate variables (this can take a few hours to run):
+
+```{r}
+library(sva)
+mval <- getM(gset)[1:5000,]
+pheno <- pData(gset)
+mod <- model.matrix(~as.factor(status), data=pheno)
+mod0 <- model.matrix(~1, data=pheno)
+sva.results <- sva(mval, mod, mod0)
+```
+
+Once the surrogate variables are computed, one can include them in the downstream analysis to adjust for unknown unwanted variation. See the [sva vignette](http://bioconductor.org/packages/release/bioc/vignettes/sva/inst/doc/sva.pdf) for a more comprehensive use of *sva*.
+
+## Sex prediction
+
+By looking at the median total intensity of the X chromosome-mapped probes, denoted $med(X)$, and the median total intensity of the Y-chromosome-mapped probes, denoted $med(Y)$, one can observe two different clusters of points corresponding to which gender the samples belong to. To predict the gender, minfi separates the points by using a cutoff on $\log_2{med(Y)}-\log_2{med(Y)}$. The default cutoff is $-2$.  Since the algorithm needs to map probes to the X-chr and to the Y-chr, the input of the function *getSex* needs to be a *GenomicMethylSet* or a *GenomicRatioSet*. 
+
+```{r}
+predictedSex <- getSex(gset, cutoff = -2)$predictedSex
+head(predictedSex)
+```
+
+To choose the cutoff to separate the two gender clusters, one can plot $med(Y)$ against $med(Y)$ with the function *plotSex*:
+
+```{r}
+plotSex(getSex(gset, cutoff = -2))
+```
+
+Finally, the function *addSex* applied to the *GenomicRatioSet* will add the predicted sex to the phenotype data. 
+
+**Note**: the function does not handle datasets with only females or only males
+
+## Advanced functions
+
+### getSnpBeta
+
+The array contains by design 65 probes that are not meant to interrogate methylation status, but instead are designed to interrogate SNPs. By default, minfi drops these probes. The function *getSnpBeta*  allows the user to extract the Beta values for those probes from an *RGChannelSet*. The return object is a matrix with the columns being the samples and the rows being the different SNP probes:
+
+```{r}
+snps <- getSnpBeta(rgset)
+head(snaps)
+```
+
+These SNP probes are intended to be used for sample tracking and sample mixups. Each SNP probe ought to have values clustered around 3 distinct values corresponding to homo-, and hetero-zygotes.
+
+### Out-of-band probes
+
+The function *getOOB* applied to an *RGChannelSet* retrieves the so-called *out-of-band* (OOB) probes. These are the measurements of Type I probes in the ``wrong" color channel. The function returns a list with two matrices, named *Red* and *Grn*.
+
+```{r}
+oob <- getOOB(rgset)
+```
+
+
+
 
 
 
